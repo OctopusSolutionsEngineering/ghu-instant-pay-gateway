@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: instant-pay-gateway-test
+  annotations:
+    argo.octopus.com/project: "Instant Pay Gateway"
+    argo.octopus.com/environment: "test"
+spec:
+  project: default
+  source:
+     repoURL: https://github.com/OctopusSolutionsEngineering/ghu-instant-pay-gateway.git
+     targetRevision: HEAD
+     path: Kubernetes/Manifests/test
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: test
+  syncPolicy:
+    automated:  
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - Validate=false
+    - CreateNamespace=true
