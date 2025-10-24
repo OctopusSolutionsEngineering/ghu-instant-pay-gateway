@@ -3,7 +3,7 @@ kind: Application
 metadata:
   name: instant-pay-gateway-staging
   annotations:
-    argo.octopus.com/project: "Instant Pay Gateway"
+    argo.octopus.com/project: "instant-pay-gateway"
     argo.octopus.com/environment: "staging"
 spec:
   project: default
