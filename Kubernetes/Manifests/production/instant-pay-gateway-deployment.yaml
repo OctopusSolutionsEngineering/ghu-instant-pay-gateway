@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: intant-pay-gateway-deployment
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       component: instant-pay-gateway-service
@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: instant-pay-gateway
-          image: octopussolutionsengineering/ghu-instant-pay-gateway:25.11.05221840
+          image: octopussolutionsengineering/ghu-instant-pay-gateway:25.11.06221839
           ports:
             - name: http-route
               containerPort: 80
