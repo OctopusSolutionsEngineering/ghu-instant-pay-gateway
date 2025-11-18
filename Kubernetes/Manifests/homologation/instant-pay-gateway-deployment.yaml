@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: intant-pay-gateway-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: instant-pay-gateway-service
+  template:
+    metadata:
+      labels:
+        component: instant-pay-gateway-service
+    spec:
+      containers:
+        - name: instant-pay-gateway
+          image: octopussolutionsengineering/ghu-instant-pay-gateway:25.11.13151927
+          ports:
+            - name: http-route
+              containerPort: 80
