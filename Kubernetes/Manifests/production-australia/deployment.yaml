@@ -1,5 +1,5 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: instant-pay-gateway-deployment
 spec:
@@ -14,7 +14,15 @@ spec:
     spec:
       containers:
         - name: instant-pay-gateway
-          image: index.docker.io/octopussolutionsengineering/ghu-instant-pay-gateway:25.12.09171858
+          image: index.docker.io/octopussolutionsengineering/ghu-instant-pay-gateway:25.12.09191739
           ports:
             - name: http-route
               containerPort: 80
+  strategy:
+    canary:
+      steps:
+      - setWeight: 30
+      - pause: {}
+      - setWeight: 60
+      - pause: {}
+      - setWeight: 100
