@@ -14,6 +14,7 @@ env:
   OCTOPUS_URL: https://demo.octopus.app
   OCTOPUS_SERVICE_ACCOUNT: 4d50c8ac-1515-4351-96a7-4a82d55d55ff
   OCTOPUS_SPACE: "Deep Ellum Tech"
+  OCTOPUS_PROJECT: "Instant Pay Gateway"
   DOCKER_HUB_REPOSITORY: octopussolutionsengineering/ghu-instant-pay-gateway
   SBOM_PACKAGE: ghu-instant-pay-gateway.sbom
 
@@ -236,3 +237,342 @@ jobs:
         id: websiteattest
         with:
           subject-checksums: subject.checksums.txt
+
+  create_release:
+    needs: [configure, create_attestations]
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    name: "🐙 Create release ${{ needs.configure.outputs.version }}"
+    outputs:
+      release_number: ${{ needs.configure.outputs.version }}
+    permissions:
+      id-token: write
+
+    steps:
+      - name: 🐙 Login to Octopus Deploy
+        uses: OctopusDeploy/login@v1
+        with:
+          server: ${{ env.OCTOPUS_URL }}
+          service_account_id: ${{ env.OCTOPUS_SERVICE_ACCOUNT }}
+      - name: Create a release in Octopus Deploy 🐙
+        uses: OctopusDeploy/create-release-action@v4
+        with:
+          project: ${{ env.OCTOPUS_PROJECT }}
+          release_number: ${{ needs.configure.outputs.version }}
+
+  deploy-to-development-alpha:
+    needs: [create_release]
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    name: "🐙 Deploy release ${{ needs.create_release.outputs.release_number }} to Development - Alpha regions"
+    outputs:
+      server_tasks: ${{ steps.deploy-release-to-alpha.outputs.server_tasks }}
+    permissions:
+      id-token: write
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: 🐙 Login to Octopus Deploy
+        uses: OctopusDeploy/login@v1
+        with:
+          server: ${{ env.OCTOPUS_URL }}
+          service_account_id: ${{ env.OCTOPUS_SERVICE_ACCOUNT }}
+      - uses: OctopusDeploy/deploy-release-tenanted-action@v3
+        id: "deploy-release-to-alpha"
+        name: "🐙 Deploy release ${{ needs.create_release.outputs.release_number }} to  Development - Alpha regions"
+        with:
+          project: ${{ env.OCTOPUS_PROJECT }}
+          release_number: ${{ needs.create_release.outputs.release_number }}
+          environment: "Development"
+          tenant_tags: "Release Ring/Alpha"
+      - id: "print-tasks"
+        run: echo "${{ steps.deploy-release-to-alpha.outputs.server_tasks }}"
+
+  wait-for-development-alpha:
+    needs: [ create_release, deploy-to-development-alpha ]
+    runs-on: ubuntu-latest
+    name: "🐙 Wait for deployment of ${{ needs.create_release.outputs.release_number }} to  Development - Alpha regions to complete"
+    strategy:
+      matrix:
+        value: ${{ fromJson(needs.deploy-to-development-alpha.outputs.server_tasks) }}
+    permissions:
+      id-token: write
+  
+    steps:
+      - name: 🐙 Login to Octopus Deploy
+        uses: OctopusDeploy/login@v1
+        with:
+          server: ${{ env.OCTOPUS_URL }}
+          service_account_id: ${{ env.OCTOPUS_SERVICE_ACCOUNT }}
+      - uses: OctopusDeploy/await-task-action@v3
+        id: "wait-for-deploy-alpha"
+        name: "🐙 Wait for deployment of ${{ needs.create_release.outputs.release_number }} to ${{ matrix.value.tenantName }} to complete"
+        with:
+          server_task_id: ${{ matrix.value.serverTaskId }}
+
+### TEST ###
+  deploy-to-test-alpha:
+    needs: [ create_release, wait-for-development-alpha ]
+    runs-on: ubuntu-latest
+    name: "🐙 Deploy release ${{ needs.create_release.outputs.release_number }} to Test - Alpha regions"
+    outputs:
+      server_tasks: ${{ steps.deploy-release-to-alpha.outputs.server_tasks }}
+    permissions:
+      id-token: write
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: 🐙 Login to Octopus Deploy
+        uses: OctopusDeploy/login@v1
+        with:
+          server: ${{ env.OCTOPUS_URL }}
+          service_account_id: ${{ env.OCTOPUS_SERVICE_ACCOUNT }}
+      - uses: OctopusDeploy/deploy-release-tenanted-action@v3
+        id: "deploy-release-to-alpha"
+        name: "🐙 Deploy release ${{ needs.create_release.outputs.release_number }} to  Test - Alpha regions"
+        with:
+          project: ${{ env.OCTOPUS_PROJECT }}
+          release_number: ${{ needs.create_release.outputs.release_number }}
+          environment: "Test"
+          tenant_tags: "Release Ring/Alpha"
+      - id: "print-tasks"
+        run: echo "${{ steps.deploy-release-to-alpha.outputs.server_tasks }}"
+
+  wait-for-test-alpha:
+    needs: [ create_release, deploy-to-test-alpha ]
+    runs-on: ubuntu-latest
+    name: "🐙 Wait for deployment of ${{ needs.create_release.outputs.release_number }} to  Test - Alpha regions to complete"
+    strategy:
+      matrix:
+        value: ${{ fromJson(needs.deploy-to-test-alpha.outputs.server_tasks) }}
+    permissions:
+      id-token: write
+  
+    steps:
+      - name: 🐙 Login to Octopus Deploy
+        uses: OctopusDeploy/login@v1
+        with:
+          server: ${{ env.OCTOPUS_URL }}
+          service_account_id: ${{ env.OCTOPUS_SERVICE_ACCOUNT }}
+      - uses: OctopusDeploy/await-task-action@v3
+        id: "wait-for-deploy-alpha"
+        name: "🐙 Wait for deployment of ${{ needs.create_release.outputs.release_number }} to ${{ matrix.value.tenantName }} to complete"
+        with:
+          server_task_id: ${{ matrix.value.serverTaskId }}
+
+  deploy-to-test-beta:
+    needs: [ create_release, wait-for-test-alpha ]
+    runs-on: ubuntu-latest
+    name: "🐙 Deploy release ${{ needs.create_release.outputs.release_number }} to Test - Alpha regions"
+    outputs:
+      server_tasks: ${{ steps.deploy-release-to-alpha.outputs.server_tasks }}
+    permissions:
+      id-token: write
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: 🐙 Login to Octopus Deploy
+        uses: OctopusDeploy/login@v1
+        with:
+          server: ${{ env.OCTOPUS_URL }}
+          service_account_id: ${{ env.OCTOPUS_SERVICE_ACCOUNT }}
+      - uses: OctopusDeploy/deploy-release-tenanted-action@v3
+        id: "deploy-release-to-alpha"
+        name: "🐙 Deploy release ${{ needs.create_release.outputs.release_number }} to  Test - Beta regions"
+        with:
+          project: ${{ env.OCTOPUS_PROJECT }}
+          release_number: ${{ needs.create_release.outputs.release_number }}
+          environment: "Test"
+          tenant_tags: "Release Ring/Beta"
+      - id: "print-tasks"
+        run: echo "${{ steps.deploy-release-to-alpha.outputs.server_tasks }}"
+
+  wait-for-test-beta:
+    needs: [ create_release, deploy-to-test-beta ]
+    runs-on: ubuntu-latest
+    name: "🐙 Wait for deployment of ${{ needs.create_release.outputs.release_number }} to  Test - Beta regions to complete"
+    strategy:
+      matrix:
+        value: ${{ fromJson(needs.deploy-to-test-beta.outputs.server_tasks) }}
+    permissions:
+      id-token: write
+  
+    steps:
+      - name: 🐙 Login to Octopus Deploy
+        uses: OctopusDeploy/login@v1
+        with:
+          server: ${{ env.OCTOPUS_URL }}
+          service_account_id: ${{ env.OCTOPUS_SERVICE_ACCOUNT }}
+      - uses: OctopusDeploy/await-task-action@v3
+        id: "wait-for-deploy-alpha"
+        name: "🐙 Wait for deployment of ${{ needs.create_release.outputs.release_number }} to ${{ matrix.value.tenantName }} to complete"
+        with:
+          server_task_id: ${{ matrix.value.serverTaskId }}
+
+### PRODUCTION ###
+  deploy-to-production-alpha:
+    needs: [ create_release, wait-for-test-beta ]
+    runs-on: ubuntu-latest
+    name: "🐙 Deploy release ${{ needs.create_release.outputs.release_number }} to Production - Alpha regions"
+    outputs:
+      server_tasks: ${{ steps.deploy-release-to-alpha.outputs.server_tasks }}
+    permissions:
+      id-token: write
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: 🐙 Login to Octopus Deploy
+        uses: OctopusDeploy/login@v1
+        with:
+          server: ${{ env.OCTOPUS_URL }}
+          service_account_id: ${{ env.OCTOPUS_SERVICE_ACCOUNT }}
+      - uses: OctopusDeploy/deploy-release-tenanted-action@v3
+        id: "deploy-release-to-alpha"
+        name: "🐙 Deploy release ${{ needs.create_release.outputs.release_number }} to  Production - Alpha regions"
+        with:
+          project: ${{ env.OCTOPUS_PROJECT }}
+          release_number: ${{ needs.create_release.outputs.release_number }}
+          environment: "Production"
+          tenant_tags: "Release Ring/Alpha"
+
+  wait-for-production-alpha:
+    needs: [ create_release, deploy-to-production-alpha ]
+    runs-on: ubuntu-latest
+    name: "🐙 Wait for deployment of ${{ needs.create_release.outputs.release_number }} to  Production - Alpha regions to complete"
+    strategy:
+      matrix:
+        value: ${{ fromJson(needs.deploy-to-production-alpha.outputs.server_tasks) }}
+    permissions:
+      id-token: write
+  
+    steps:
+      - name: 🐙 Login to Octopus Deploy
+        uses: OctopusDeploy/login@v1
+        with:
+          server: ${{ env.OCTOPUS_URL }}
+          service_account_id: ${{ env.OCTOPUS_SERVICE_ACCOUNT }}
+      - uses: OctopusDeploy/await-task-action@v3
+        id: "wait-for-deploy-alpha"
+        name: "🐙 Wait for deployment of ${{ needs.create_release.outputs.release_number }} to ${{ matrix.value.tenantName }} to complete"
+        with:
+          server_task_id: ${{ matrix.value.serverTaskId }}
+
+  approve-production-alpha-deployment:
+    name: ✅ Approve Alpha deployment
+    needs: [create_release, wait-for-production-alpha]
+    runs-on: ubuntu-latest
+    environment: 'alpha'
+      
+    steps:
+      - name: Gather Alpha approval
+        run: echo "✅ Approval gathered"
+
+  deploy-to-production-beta:
+    # The type of runner that the job will run on
+    needs: [create_release, approve-production-alpha-deployment]
+    runs-on: ubuntu-latest
+    name: "🐙 Deploy release ${{ needs.create_release.outputs.release_number }} to Production - Beta regions"
+    outputs:
+      server_tasks: ${{ steps.deploy-release-to-beta.outputs.server_tasks }}
+    permissions:
+      id-token: write
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: 🐙 Login to Octopus Deploy
+        uses: OctopusDeploy/login@v1
+        with:
+          server: ${{ env.OCTOPUS_URL }}
+          service_account_id: ${{ env.OCTOPUS_SERVICE_ACCOUNT }}
+      - uses: OctopusDeploy/deploy-release-tenanted-action@v3
+        id: "deploy-release-to-beta"
+        name: "🐙 Deploy release ${{ needs.create_release.outputs.release_number }} to Production - Beta regions"
+        with:
+          project: ${{ env.OCTOPUS_PROJECT }}
+          release_number: ${{ needs.create_release.outputs.release_number }}
+          environment: "Production"
+          tenant_tags: "Release Ring/Beta"
+      - id: "print-tasks"
+        run: echo "${{ steps.deploy-release-to-beta.outputs.server_tasks }}"
+
+  wait-for-production-beta:
+    needs: [ create_release, deploy-to-production-beta ]
+    runs-on: ubuntu-latest
+    name: "🐙 Wait for deployment of ${{ needs.create_release.outputs.release_number }} to Production - Beta regions to complete"
+    strategy:
+      matrix:
+        value: ${{ fromJson(needs.deploy-to-production-beta.outputs.server_tasks) }}
+    permissions:
+      id-token: write
+  
+    steps:
+      - name: 🐙 Login to Octopus Deploy
+        uses: OctopusDeploy/login@v1
+        with:
+          server: ${{ env.OCTOPUS_URL }}
+          service_account_id: ${{ env.OCTOPUS_SERVICE_ACCOUNT }}
+      - uses: OctopusDeploy/await-task-action@v3
+        id: "wait-for-deploy-beta"
+        name: "🐙 Wait for deployment of ${{ needs.create_release.outputs.release_number }} to ${{ matrix.value.tenantName }} to complete"
+        with:
+          server_task_id: ${{ matrix.value.serverTaskId }}
+
+  approve-production-beta-deployment:
+    name: ✅ Approve Beta deployment
+    needs: [ create_release, wait-for-production-beta]
+    runs-on: ubuntu-latest
+    environment: 'beta'
+      
+    steps:
+      - name: Gather Beta approval
+        run: echo "✅ Approval gathered"
+
+  deploy-to-production-stable:
+    needs: [ create_release, approve-production-beta-deployment]
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    name: "🐙 Deploy release ${{ needs.create_release.outputs.release_number }} to Production - Stable regions"
+    outputs:
+      server_tasks: ${{ steps.deploy-release-to-stable.outputs.server_tasks }}
+    permissions:
+      id-token: write
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - name: 🐙 Login to Octopus Deploy
+        uses: OctopusDeploy/login@v1
+        with:
+          server: ${{ env.OCTOPUS_URL }}
+          service_account_id: ${{ env.OCTOPUS_SERVICE_ACCOUNT }}
+      - uses: OctopusDeploy/deploy-release-tenanted-action@v3
+        id: "deploy-release-to-stable"
+        name: "🐙 Deploy release ${{ needs.create_release.outputs.release_number }} to Production - Stable regions"
+        with:
+          project: ${{ env.OCTOPUS_PROJECT }}
+          release_number: ${{ needs.create_release.outputs.release_number }}
+          environment: "Production"
+          tenant_tags: "Release Ring/Stable"
+      - id: "print-tasks"
+        run: echo "${{ steps.deploy-release-to-stable.outputs.server_tasks }}"
+
+  wait-for-stable:
+    needs: [ create_release, deploy-to-production-stable ]
+    runs-on: ubuntu-latest
+    name: "🐙 Wait for deployment of ${{ needs.create_release.outputs.release_number }} to Production - Stable regions to complete"
+    strategy:
+      matrix:
+        value: ${{ fromJson(needs.deploy-to-production-stable.outputs.server_tasks) }}
+    permissions:
+      id-token: write
+  
+    steps:
+      - name: 🐙 Login to Octopus Deploy
+        uses: OctopusDeploy/login@v1
+        with:
+          server: ${{ env.OCTOPUS_URL }}
+          service_account_id: ${{ env.OCTOPUS_SERVICE_ACCOUNT }}
+      - uses: OctopusDeploy/await-task-action@v3
+        id: "wait-for-deploy-stable"
+        name: "🐙 Wait for deployment of ${{ needs.create_release.outputs.release_number }} to ${{ matrix.value.tenantName }} to complete"
+        with:
+          server_task_id: ${{ matrix.value.serverTaskId }}
