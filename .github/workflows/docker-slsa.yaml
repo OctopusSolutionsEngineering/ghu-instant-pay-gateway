@@ -360,58 +360,9 @@ jobs:
         with:
           server_task_id: ${{ matrix.value.serverTaskId }}
 
-  deploy-to-test-beta:
-    needs: [ create_release, wait-for-test-alpha ]
-    runs-on: ubuntu-latest
-    name: "🐙 Deploy release ${{ needs.create_release.outputs.release_number }} to Test - Alpha regions"
-    outputs:
-      server_tasks: ${{ steps.deploy-release-to-alpha.outputs.server_tasks }}
-    permissions:
-      id-token: write
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      - name: 🐙 Login to Octopus Deploy
-        uses: OctopusDeploy/login@v1
-        with:
-          server: ${{ env.OCTOPUS_URL }}
-          service_account_id: ${{ env.OCTOPUS_SERVICE_ACCOUNT }}
-      - uses: OctopusDeploy/deploy-release-tenanted-action@v3
-        id: "deploy-release-to-alpha"
-        name: "🐙 Deploy release ${{ needs.create_release.outputs.release_number }} to  Test - Beta regions"
-        with:
-          project: ${{ env.OCTOPUS_PROJECT }}
-          release_number: ${{ needs.create_release.outputs.release_number }}
-          environment: "Test"
-          tenant_tags: "Release Ring/Beta"
-      - id: "print-tasks"
-        run: echo "${{ steps.deploy-release-to-alpha.outputs.server_tasks }}"
-
-  wait-for-test-beta:
-    needs: [ create_release, deploy-to-test-beta ]
-    runs-on: ubuntu-latest
-    name: "🐙 Wait for deployment of ${{ needs.create_release.outputs.release_number }} to  Test - Beta regions to complete"
-    strategy:
-      matrix:
-        value: ${{ fromJson(needs.deploy-to-test-beta.outputs.server_tasks) }}
-    permissions:
-      id-token: write
-  
-    steps:
-      - name: 🐙 Login to Octopus Deploy
-        uses: OctopusDeploy/login@v1
-        with:
-          server: ${{ env.OCTOPUS_URL }}
-          service_account_id: ${{ env.OCTOPUS_SERVICE_ACCOUNT }}
-      - uses: OctopusDeploy/await-task-action@v3
-        id: "wait-for-deploy-alpha"
-        name: "🐙 Wait for deployment of ${{ needs.create_release.outputs.release_number }} to ${{ matrix.value.tenantName }} to complete"
-        with:
-          server_task_id: ${{ matrix.value.serverTaskId }}
-
 ### PRODUCTION ###
   deploy-to-production-alpha:
-    needs: [ create_release, wait-for-test-beta ]
+    needs: [ create_release, wait-for-test-alpha ]
     runs-on: ubuntu-latest
     name: "🐙 Deploy release ${{ needs.create_release.outputs.release_number }} to Production - Alpha regions"
     outputs:
