@@ -30,7 +30,7 @@ jobs:
 
       - name: Set version number
         id: version-generator
-        run: echo "version=$(date +'%y.%m.%d%H%M%S')-quick" >> $GITHUB_OUTPUT
+        run: echo "version=$(date +'%y.%m.%d%H%M%S')" >> $GITHUB_OUTPUT
 
       - name: Login to Octopus Deploy
         uses: OctopusDeploy/login@v1
