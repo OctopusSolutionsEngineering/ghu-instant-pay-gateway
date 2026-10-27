@@ -15,8 +15,8 @@ if (builder.Environment.IsDevelopment())
 else if (!string.IsNullOrEmpty(clientIdentifier))
 {
     Console.WriteLine("Configuring Octopus Feature Provider");
-    await OpenFeature.Api.Instance.SetProviderAsync(new OctopusFeatureProvider(new OctopusFeatureConfiguration(clientIdentifier)));
-}
+    var octopusFeatureConfiguration = new OctopusFeatureConfiguration(clientIdentifier, new ProductMetadata("ACH Router"));
+    await OpenFeature.Api.Instance.SetProviderAsync(new OctopusFeatureProvider(octopusFeatureConfiguration));}
 
 // Add services to the container.
 builder.Services.AddControllers();

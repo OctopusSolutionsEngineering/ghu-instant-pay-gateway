@@ -19,7 +19,7 @@ public class Function
     public async Task<VersionDetails> FunctionHandler(ILambdaContext context)
     {
         var clientIdentifier = Environment.GetEnvironmentVariable("OPEN_FEATURE_CLIENT_ID") ?? string.Empty;
-        var featureProvider = new OctopusFeatureProvider(new OctopusFeatureConfiguration(clientIdentifier));
+        var featureProvider = new OctopusFeatureProvider(new OctopusFeatureConfiguration(clientIdentifier, new ProductMetadata("Instant Pay Gateway")));
         var feature1Enabled = false;
         var feature2Enabled = false;
         
